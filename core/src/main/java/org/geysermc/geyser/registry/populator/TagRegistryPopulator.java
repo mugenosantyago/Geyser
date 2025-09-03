@@ -105,7 +105,8 @@ public final class TagRegistryPopulator {
                     if (javaItem == null) {
                         // Time to search the long way around.
                         for (ItemMapping mapping : mappings.getItems()) {
-                            if (mapping.getBedrockIdentifier().equals(bedrockIdentifier)) {
+                            // Add null check for mappings that couldn't be resolved
+                            if (mapping != null && mapping.getBedrockIdentifier().equals(bedrockIdentifier)) {
                                 javaItem = mapping.getJavaItem();
                                 break;
                             }

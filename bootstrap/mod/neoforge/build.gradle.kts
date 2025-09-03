@@ -30,9 +30,8 @@ dependencies {
 
     api(project(":mod", configuration = "namedElements"))
     shadowBundle(project(path = ":mod", configuration = "transformProductionNeoForge"))
-    // Include core via shadowBundle to ensure resources are packaged
-    shadowBundle(projects.core)
-    // Include API via JiJ to avoid module conflicts but still provide classes
+    // Include everything via JiJ to prevent separate modules
+    include(projects.core)
     include(projects.api)
 
     // Minecraft (1.21.2+) includes jackson. But an old version!
