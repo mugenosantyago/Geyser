@@ -38,7 +38,7 @@ dependencies {
     shadowBundle(libs.jackson.dataformat.yaml)
     shadowBundle(libs.jackson.annotations)
 
-    // Let's shade in our own api
+    // Include API but merge it into the main module to avoid conflicts
     shadowBundle(projects.api)
 
     // cannot be shaded, since neoforge will complain if floodgate-neoforge tries to provide this
@@ -67,6 +67,10 @@ tasks {
     shadowJar {
         // Without this, jackson's service files are not relocated
         mergeServiceFiles()
+        
+        // Exclude module-info files to prevent module conflicts
+        exclude("**/module-info.class")
+        exclude("META-INF/versions/*/module-info.class")
     }
 }
 

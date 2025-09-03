@@ -88,7 +88,9 @@ public class CollisionRegistryLoader extends MultiResourceRegistryLoader<String,
                 continue;
             }
 
-            BlockCollision newCollision = instantiateCollision(state, annotationMap, indices[i], collisionList);
+            // Add bounds check to prevent array index out of bounds
+            int collisionIndex = (i < indices.length) ? indices[i] : 0; // Default to 0 if out of bounds
+            BlockCollision newCollision = instantiateCollision(state, annotationMap, collisionIndex, collisionList);
 
             if (newCollision != null) {
                 // If there's an existing instance equal to this one, use that instead

@@ -61,6 +61,29 @@ public class JavaLoginTranslator extends PacketTranslator<ClientboundLoginPacket
 
         PlayerSpawnInfo spawnInfo = packet.getCommonPlayerSpawnInfo();
         JavaDimension newDimension = session.getRegistryCache().registry(JavaRegistries.DIMENSION_TYPE).byId(spawnInfo.getDimension());
+        
+        // Handle null dimension (can happen with custom dimensions from mods like Good Night's Sleep)
+        if (newDimension == null) {
+            session.getGeyser().getLogger().debug("JavaLoginTranslator: Dimension type " + spawnInfo.getDimension() + " not found in registry for player " + session.getPlayerEntity().getUsername() + ", using overworld as fallback");
+            
+            // Fallback to overworld dimension
+            newDimension = session.getRegistryCache().registry(JavaRegistries.DIMENSION_TYPE).byId(0); // Overworld is typically ID 0
+            
+            // If still null, try to find any available dimension
+            if (newDimension == null) {
+                session.getGeyser().getLogger().debug("JavaLoginTranslator: Could not find overworld dimension either, trying to find any available dimension for player " + session.getPlayerEntity().getUsername());
+                
+                // Try to get any dimension from the registry
+                var registry = session.getRegistryCache().registry(JavaRegistries.DIMENSION_TYPE);
+                if (registry != null && registry.values().size() > 0) {
+                    newDimension = registry.values().iterator().next(); // Get the first available dimension
+                    session.getGeyser().getLogger().debug("JavaLoginTranslator: Using fallback dimension " + newDimension + " for player " + session.getPlayerEntity().getUsername());
+                } else {
+                    session.getGeyser().getLogger().debug("JavaLoginTranslator: No dimensions available in registry for player " + session.getPlayerEntity().getUsername() + " - connection will likely fail");
+                    return; // Can't proceed without a dimension
+                }
+            }
+        }
 
         // If the player is already initialized and a join game packet is sent, they
         // are swapping servers
