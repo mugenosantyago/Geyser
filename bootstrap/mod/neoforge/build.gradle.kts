@@ -57,6 +57,9 @@ dependencies {
 
 tasks.withType<Jar> {
     manifest.attributes["Main-Class"] = "org.geysermc.geyser.platform.neoforge.GeyserNeoForgeMain"
+    // Disable module system to prevent conflicts
+    manifest.attributes.remove("Automatic-Module-Name")
+    manifest.attributes["Multi-Release"] = "false"
 }
 
 tasks {
@@ -72,12 +75,18 @@ tasks {
         // Without this, jackson's service files are not relocated
         mergeServiceFiles()
         
-        // Exclude ALL module-related files to force single module
+        // Exclude ALL module-related files to disable module system entirely
         exclude("**/module-info.class")
-        exclude("META-INF/versions/*/module-info.class")
-        exclude("**/META-INF/MANIFEST.MF")
+        exclude("META-INF/versions/*/module-info.class") 
         exclude("**/META-INF/services/java.lang.module.ModuleProvider")
         exclude("**/META-INF/services/org.geysermc.geyser.api.*")
+        exclude("**/META-INF/versions/**")
+        
+        // Force non-modular jar
+        manifest {
+            attributes.remove("Automatic-Module-Name")
+            attributes["Multi-Release"] = "false"
+        }
         
         // Force all packages into single jar without separate modules
         archiveClassifier.set("")
