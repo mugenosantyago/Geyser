@@ -30,8 +30,9 @@ dependencies {
 
     api(project(":mod", configuration = "namedElements"))
     shadowBundle(project(path = ":mod", configuration = "transformProductionNeoForge"))
+    // Include core via shadowBundle to ensure resources are packaged
     shadowBundle(projects.core)
-    // Include API via JiJ to avoid separate module creation
+    // Include API via JiJ to avoid module conflicts but still provide classes
     include(projects.api)
 
     // Minecraft (1.21.2+) includes jackson. But an old version!
@@ -71,13 +72,17 @@ tasks {
         // Without this, jackson's service files are not relocated
         mergeServiceFiles()
         
-        // Exclude module-info files to prevent module conflicts
+        // Exclude ALL module-related files to force single module
         exclude("**/module-info.class")
         exclude("META-INF/versions/*/module-info.class")
         exclude("**/META-INF/MANIFEST.MF")
+        exclude("**/META-INF/services/java.lang.module.ModuleProvider")
+        exclude("**/META-INF/services/org.geysermc.geyser.api.*")
         
-        // Merge all packages into single module
+        // Force all packages into single jar without separate modules
         archiveClassifier.set("")
+        
+        // Resources should be included automatically via shadowBundle
     }
 }
 
