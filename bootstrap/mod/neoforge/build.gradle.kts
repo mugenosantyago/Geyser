@@ -38,8 +38,9 @@ dependencies {
     shadowBundle(libs.jackson.dataformat.yaml)
     shadowBundle(libs.jackson.annotations)
 
-    // Include API but merge it into the main module to avoid conflicts
-    shadowBundle(projects.api)
+    // Don't include API as separate bundle - it causes module conflicts
+    // The API classes should be included via core dependencies
+    // shadowBundle(projects.api)
 
     // cannot be shaded, since neoforge will complain if floodgate-neoforge tries to provide this
     include(projects.common)
