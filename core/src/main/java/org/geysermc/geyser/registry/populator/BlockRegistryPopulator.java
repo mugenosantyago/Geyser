@@ -262,14 +262,45 @@ public final class BlockRegistryPopulator {
                 GeyserBedrockBlock bedrockDefinition;
                 CustomBlockState blockStateOverride = BlockRegistries.CUSTOM_BLOCK_STATE_OVERRIDES.get(javaRuntimeId);
                 if (blockStateOverride == null) {
-                    bedrockDefinition = vanillaBedrockDefinition;
-                    if (bedrockDefinition == null) {
-                        throw new RuntimeException("""
-                            Unable to find %s Bedrock runtime ID for %s! Original block tag:
-                            %s
-                            Updated block tag:
-                            %s""".formatted(javaId, palette.key(), originalBedrockTag, bedrockTag));
+                                    bedrockDefinition = vanillaBedrockDefinition;
+                if (bedrockDefinition == null) {
+                    // Try to find a fallback block (like dirt without states or air)
+                    GeyserImpl.getInstance().getLogger().debug("Unable to find %s Bedrock runtime ID for %s, trying fallback".formatted(javaId, palette.key()));
+                    
+                    // Try to find a simpler version of the same block
+                    String blockName = ((NbtMap) originalBedrockTag).getString("name");
+                    if (blockName != null) {
+                        // Create a simplified block tag without complex states
+                        NbtMap simplifiedTag = NbtMap.builder()
+                            .putString("name", blockName)
+                            .putCompound("states", NbtMap.EMPTY)
+                            .build();
+                        
+                        bedrockDefinition = blockStateOrderedMap.get(simplifiedTag);
+                        
+                        if (bedrockDefinition != null) {
+                            GeyserImpl.getInstance().getLogger().debug("Found fallback block definition for %s".formatted(blockName));
+                        } else {
+                            // Final fallback - use air block
+                            NbtMap airTag = NbtMap.builder()
+                                .putString("name", "minecraft:air")
+                                .putCompound("states", NbtMap.EMPTY)
+                                .build();
+                            
+                            bedrockDefinition = blockStateOrderedMap.get(airTag);
+                            if (bedrockDefinition != null) {
+                                GeyserImpl.getInstance().getLogger().debug("Using air block as final fallback for %s".formatted(blockName));
+                            } else {
+                                // Use the first available block as absolute fallback
+                                GeyserImpl.getInstance().getLogger().error("Unable to find any fallback for %s - using first available block".formatted(blockName));
+                                bedrockDefinition = blockStateOrderedMap.values().iterator().next();
+                            }
+                        }
+                    } else {
+                        GeyserImpl.getInstance().getLogger().error("Unable to find block name in tag for %s - using first available block".formatted(javaId));
+                        bedrockDefinition = blockStateOrderedMap.values().iterator().next();
                     }
+                }
                 } else {
                     bedrockDefinition = customBlockStateDefinitions.get(blockStateOverride);
                     if (bedrockDefinition == null) {

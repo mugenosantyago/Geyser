@@ -31,6 +31,8 @@ dependencies {
     api(project(":mod", configuration = "namedElements"))
     shadowBundle(project(path = ":mod", configuration = "transformProductionNeoForge"))
     shadowBundle(projects.core)
+    // Include API via JiJ to avoid separate module creation
+    include(projects.api)
 
     // Minecraft (1.21.2+) includes jackson. But an old version!
     shadowBundle(libs.jackson.core)
@@ -72,6 +74,10 @@ tasks {
         // Exclude module-info files to prevent module conflicts
         exclude("**/module-info.class")
         exclude("META-INF/versions/*/module-info.class")
+        exclude("**/META-INF/MANIFEST.MF")
+        
+        // Merge all packages into single module
+        archiveClassifier.set("")
     }
 }
 
