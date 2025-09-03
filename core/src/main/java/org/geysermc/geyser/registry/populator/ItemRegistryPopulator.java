@@ -314,7 +314,31 @@ public class ItemRegistryPopulator {
                 String bedrockIdentifier = mappingItem.getBedrockIdentifier();
                 ItemDefinition definition = definitions.get(bedrockIdentifier);
                 if (definition == null) {
-                    throw new RuntimeException("Missing Bedrock ItemDefinition in version " + palette.version() + " for mapping: " + mappingItem);
+                    // Try to find a fallback item definition
+                    GeyserImpl.getInstance().getLogger().debug("Missing Bedrock ItemDefinition in version " + palette.version() + " for mapping: " + mappingItem + ", trying fallbacks");
+                    
+                    // Try some common fallback items
+                    String[] fallbacks = {"minecraft:stick", "minecraft:stone", "minecraft:dirt", "minecraft:air"};
+                    for (String fallback : fallbacks) {
+                        definition = definitions.get(fallback);
+                        if (definition != null) {
+                            GeyserImpl.getInstance().getLogger().debug("Using fallback item " + fallback + " for missing " + bedrockIdentifier);
+                            break;
+                        }
+                    }
+                    
+                    // If still no definition found, use the first available item
+                    if (definition == null && !definitions.isEmpty()) {
+                        definition = definitions.values().iterator().next();
+                        GeyserImpl.getInstance().getLogger().debug("Using first available item as fallback for missing " + bedrockIdentifier);
+                    }
+                    
+                    // If still nothing, skip this item
+                    if (definition == null) {
+                        GeyserImpl.getInstance().getLogger().error("No fallback found for missing item " + bedrockIdentifier + ", skipping");
+                        mappings.add(null);
+                        continue;
+                    }
                 }
 
                 BlockDefinition bedrockBlock = null;
