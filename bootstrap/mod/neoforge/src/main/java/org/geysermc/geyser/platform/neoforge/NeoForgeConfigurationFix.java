@@ -76,16 +76,24 @@ public class NeoForgeConfigurationFix {
                             GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Monitoring " + playerName + 
                                 " - sentSpawn: " + session.isSentSpawnPacket() + ", spawned: " + session.isSpawned());
                             
-                            // Check if player is stuck on loading screen
+                            // Check if player is stuck on loading screen (normal case)
                             if (session.isSentSpawnPacket() && !session.isSpawned()) {
                                 GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Detected stuck player " + playerName + ", sending PLAYER_SPAWN");
                                 sendPlayerSpawnStatus(session);
                                 return true; // Remove from pending
                             }
                             
-                            // Also check if it's been more than 3 seconds and still not spawned
-                            if (System.currentTimeMillis() - startTime > 3000 && !session.isSpawned()) {
-                                GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Player " + playerName + " taking too long to spawn, forcing PLAYER_SPAWN");
+                            // Check for unusual state: spawned but no spawn packet sent
+                            if (!session.isSentSpawnPacket() && session.isSpawned()) {
+                                GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Player " + playerName + " in unusual state, forcing PLAYER_SPAWN");
+                                sendPlayerSpawnStatus(session);
+                                return true; // Remove from pending
+                            }
+                            
+                            // Also check if it's been more than 3 seconds and still not properly spawned
+                            if (System.currentTimeMillis() - startTime > 3000 && 
+                                (!session.isSpawned() || !session.isSentSpawnPacket())) {
+                                GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Player " + playerName + " taking too long to spawn properly, forcing PLAYER_SPAWN");
                                 sendPlayerSpawnStatus(session);
                                 return true; // Remove from pending
                             }
@@ -119,10 +127,14 @@ public class NeoForgeConfigurationFix {
                         GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Found session for " + playerName + 
                             ", sentSpawn: " + session.isSentSpawnPacket() + ", spawned: " + session.isSpawned());
                         
-                        // Only send spawn status if the session is in the right state
-                        // We want sentSpawn: true, spawned: false (stuck on loading screen)
+                        // Handle different session states
                         if (session.isSentSpawnPacket() && !session.isSpawned()) {
+                            // Normal stuck state: spawn packet sent but client not spawned
                             GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Player " + playerName + " is stuck on loading screen, sending PLAYER_SPAWN");
+                            sendPlayerSpawnStatus(session);
+                        } else if (!session.isSentSpawnPacket() && session.isSpawned()) {
+                            // Unusual state: server thinks spawned but client never got spawn packet
+                            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Player " + playerName + " in unusual state (spawned but no spawn packet sent), forcing PLAYER_SPAWN");
                             sendPlayerSpawnStatus(session);
                         } else if (!session.isSentSpawnPacket()) {
                             GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Session for " + playerName + " hasn't sent spawn packet yet, will retry later");
