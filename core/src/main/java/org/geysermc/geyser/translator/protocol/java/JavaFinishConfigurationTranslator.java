@@ -29,7 +29,6 @@ import org.cloudburstmc.protocol.bedrock.data.inventory.crafting.recipe.MultiRec
 import org.cloudburstmc.protocol.bedrock.data.inventory.crafting.recipe.RecipeData;
 import org.cloudburstmc.protocol.bedrock.packet.CraftingDataPacket;
 import org.cloudburstmc.protocol.bedrock.packet.PlayerListPacket;
-import org.cloudburstmc.protocol.bedrock.packet.PlayStatusPacket;
 import org.geysermc.geyser.registry.Registries;
 import org.geysermc.geyser.session.GeyserSession;
 import org.geysermc.geyser.translator.protocol.PacketTranslator;
@@ -93,16 +92,5 @@ public class JavaFinishConfigurationTranslator extends PacketTranslator<Clientbo
 
         // Resolve API components from non-vanilla registered items that required registry data to map to MCPL components
         session.getComponentCache().resolveComponents();
-
-        // For NeoForge servers, we need to explicitly tell the Bedrock client to exit the loading screen
-        // when the configuration phase is complete. This is done by sending a PLAYER_SPAWN status packet
-        // if the player has already been sent the StartGamePacket but hasn't spawned yet.
-        if (session.isSentSpawnPacket() && !session.isSpawned()) {
-            PlayStatusPacket playStatusPacket = new PlayStatusPacket();
-            playStatusPacket.setStatus(PlayStatusPacket.Status.PLAYER_SPAWN);
-            session.sendUpstreamPacket(playStatusPacket);
-            session.setSpawned(true);
-            session.getGeyser().getLogger().info("JavaFinishConfigurationTranslator: Sent PLAYER_SPAWN status to complete configuration for " + session.getPlayerEntity().getUsername());
-        }
     }
 }

@@ -30,8 +30,8 @@ dependencies {
 
     api(project(":mod", configuration = "namedElements"))
     shadowBundle(project(path = ":mod", configuration = "transformProductionNeoForge"))
-    // Use shadowBundle for core to ensure resources are properly merged
-    shadowBundle(projects.core)
+    // Include core via JiJ to avoid module conflicts
+    include(projects.core)
     // Include API via JiJ to provide classes without module conflicts
     include(projects.api)
 
@@ -48,8 +48,8 @@ dependencies {
     // cannot be shaded, since neoforge will complain if floodgate-neoforge tries to provide this
     include(projects.common)
 
-    // Include all transitive deps of core via JiJ
-    includeTransitive(projects.core)
+    // Don't include transitive deps of core to avoid module conflicts
+    // includeTransitive(projects.core)
 
     modImplementation(libs.cloud.neoforge)
     include(libs.cloud.neoforge)

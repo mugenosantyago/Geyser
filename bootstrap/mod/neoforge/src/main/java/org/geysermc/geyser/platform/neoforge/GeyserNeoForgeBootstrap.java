@@ -89,11 +89,14 @@ public class GeyserNeoForgeBootstrap extends GeyserModBootstrap {
     private void onServerStarted(ServerStartedEvent event) {
         this.setServer(event.getServer());
         this.onGeyserEnable();
+        // Initialize NeoForge-specific configuration fix
+        NeoForgeConfigurationFix.initialize();
     }
 
     private void onServerStopping(ServerStoppingEvent event) {
         if (isServer()) {
             this.onGeyserShutdown();
+            NeoForgeConfigurationFix.shutdown();
         } else {
             this.onGeyserDisable();
         }
@@ -106,6 +109,11 @@ public class GeyserNeoForgeBootstrap extends GeyserModBootstrap {
     private void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             GeyserModUpdateListener.onPlayReady(player);
+            // Track Bedrock players for configuration fix
+            String playerName = player.getName().getString();
+            if (playerName.startsWith(".")) { // Floodgate prefix
+                NeoForgeConfigurationFix.onPlayerJoin(playerName);
+            }
         }
     }
 
