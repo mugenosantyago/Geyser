@@ -178,18 +178,46 @@ public class NeoForgeConfigurationFix {
     private static void sendPlayerSpawnStatus(GeyserSession session) {
         try {
             String playerName = session.getPlayerEntity().getUsername();
-            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Attempting to send PLAYER_SPAWN status to " + playerName);
+            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Attempting comprehensive spawn fix for " + playerName);
             
+            // Send multiple packets to ensure the client exits loading screen
+            
+            // 1. Send PLAYER_SPAWN status
             PlayStatusPacket playStatusPacket = new PlayStatusPacket();
             playStatusPacket.setStatus(PlayStatusPacket.Status.PLAYER_SPAWN);
             session.sendUpstreamPacket(playStatusPacket);
+            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Sent PLAYER_SPAWN status to " + playerName);
             
-            // Also try to set spawned state
+            // 2. Send LOGIN_SUCCESS status as well (sometimes needed for stuck clients)
             try {
+                PlayStatusPacket loginSuccessPacket = new PlayStatusPacket();
+                loginSuccessPacket.setStatus(PlayStatusPacket.Status.LOGIN_SUCCESS);
+                session.sendUpstreamPacket(loginSuccessPacket);
+                GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Sent LOGIN_SUCCESS status to " + playerName);
+            } catch (Exception loginException) {
+                GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Could not send LOGIN_SUCCESS: " + loginException.getMessage());
+            }
+            
+            // 3. Try to trigger the session's own spawn logic
+            try {
+                // Force the session to mark itself as spawned
                 session.setSpawned(true);
-                GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Successfully sent PLAYER_SPAWN status to " + playerName);
+                
+                // Also try to call the session's spawn method if it exists
+                try {
+                    java.lang.reflect.Method spawnMethod = session.getClass().getDeclaredMethod("spawn");
+                    spawnMethod.setAccessible(true);
+                    spawnMethod.invoke(session);
+                    GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Called session spawn method for " + playerName);
+                } catch (NoSuchMethodException noMethod) {
+                    // Method doesn't exist, that's fine
+                } catch (Exception spawnMethodException) {
+                    GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Could not call spawn method: " + spawnMethodException.getMessage());
+                }
+                
+                GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Comprehensive spawn fix completed for " + playerName);
             } catch (Exception spawnException) {
-                GeyserImpl.getInstance().getLogger().error("NeoForgeConfigurationFix: Sent packet but couldn't set spawned state for " + playerName + ": " + spawnException.getMessage());
+                GeyserImpl.getInstance().getLogger().error("NeoForgeConfigurationFix: Could not set spawned state for " + playerName + ": " + spawnException.getMessage());
             }
         } catch (Exception e) {
             GeyserImpl.getInstance().getLogger().error("NeoForgeConfigurationFix: Failed to send spawn status to " + 
