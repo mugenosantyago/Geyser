@@ -236,6 +236,35 @@ public class NeoForgeConfigurationFix {
                     GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Could not set sentSpawnPacket: " + setSentSpawnException.getMessage());
                 }
                 
+                // Try to force the session to reset its spawned state and re-trigger spawn
+                try {
+                    session.setSpawned(false); // Reset spawned state
+                    Thread.sleep(100); // Small delay
+                    
+                    // Try to call sendJavaSpawnPacket if it exists
+                    try {
+                        java.lang.reflect.Method sendSpawnMethod = session.getClass().getDeclaredMethod("sendJavaSpawnPacket");
+                        sendSpawnMethod.setAccessible(true);
+                        sendSpawnMethod.invoke(session);
+                        GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Called sendJavaSpawnPacket for " + playerName);
+                    } catch (NoSuchMethodException noSpawnMethod) {
+                        // Try alternative spawn methods
+                        try {
+                            java.lang.reflect.Method spawnPlayerMethod = session.getClass().getDeclaredMethod("spawnPlayer");
+                            spawnPlayerMethod.setAccessible(true);
+                            spawnPlayerMethod.invoke(session);
+                            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Called spawnPlayer for " + playerName);
+                        } catch (Exception altSpawnException) {
+                            GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Alternative spawn methods failed: " + altSpawnException.getMessage());
+                        }
+                    }
+                    
+                    session.setSpawned(true); // Set back to spawned
+                    GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Attempted spawn sequence reset for " + playerName);
+                } catch (Exception resetException) {
+                    GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Could not reset spawn sequence: " + resetException.getMessage());
+                }
+                
                 // Also try to call the session's spawn method if it exists
                 try {
                     java.lang.reflect.Method spawnMethod = session.getClass().getDeclaredMethod("spawn");
