@@ -13,8 +13,8 @@ architectury {
 provided("org.cloudburstmc.math", "api")
 provided("com.google.errorprone", "error_prone_annotations")
 
-// Jackson shipped by Minecraft is too old, so we shade & relocate our newer version
-relocate("com.fasterxml.jackson")
+// Jackson shipped by Minecraft is too old, so we include our newer version as JAR-in-JAR
+// Don't relocate - just include as-is
 
 val includeTransitive: Configuration = configurations.getByName("includeTransitive")
 
@@ -34,16 +34,18 @@ dependencies {
         exclude(group = "org.geysermc.geyser", module = "core")
         exclude(group = "org.geysermc.geyser", module = "api")
     }
+    
     // Include core via JiJ to avoid module conflicts
     include(projects.core)
     // Include API via JiJ to provide classes without module conflicts
     include(projects.api)
 
-    // Minecraft (1.21.2+) includes jackson. But an old version!
-    shadowBundle(libs.jackson.core)
-    shadowBundle(libs.jackson.databind)
-    shadowBundle(libs.jackson.dataformat.yaml)
-    shadowBundle(libs.jackson.annotations)
+    // Use NeoForge's Jackson 2.13.4 (provided) and only add the YAML module
+    // NeoForge provides: jackson-core, jackson-databind, jackson-annotations 2.13.4
+    include("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.13.4")
+    
+    // Include SnakeYAML as it's required by Jackson YAML
+    include("org.yaml:snakeyaml:1.30")
 
     // Don't include API as separate bundle - it causes module conflicts
     // The API classes should be included via core dependencies
@@ -55,8 +57,11 @@ dependencies {
     // Include mcprotocollib explicitly since it's needed by the mod mixins
     include(libs.mcprotocollib)
     
-    // Include transitive dependencies but they'll be de-modularized in shadowJar
-    includeTransitive(projects.core)
+    // Include transitive dependencies but exclude Jackson since we're including it explicitly
+    includeTransitive(projects.core) {
+        exclude(group = "com.fasterxml.jackson.core")
+        exclude(group = "com.fasterxml.jackson.dataformat")
+    }
 
     modImplementation(libs.cloud.neoforge)
     include(libs.cloud.neoforge)
@@ -79,7 +84,7 @@ tasks {
     }
 
     shadowJar {
-        // Without this, jackson's service files are not relocated
+        // Without this, service files are not merged properly
         mergeServiceFiles()
         
         // Exclude ALL module-related files to disable module system entirely

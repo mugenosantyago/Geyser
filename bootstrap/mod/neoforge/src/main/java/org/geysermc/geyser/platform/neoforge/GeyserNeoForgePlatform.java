@@ -86,20 +86,39 @@ public class GeyserNeoForgePlatform implements GeyserModPlatform {
             Path path = container.getModInfo().getOwningFile().getFile().findResource(resource);
             return Files.newInputStream(path);
         } catch (IOException e) {
-            // If not found, try to load from classpath (handles JAR-in-JAR)
-            // This will search through all available class loaders including nested JARs
+            // For JAR-in-JAR resources, we need to use the core module's class loader
+            // Try multiple class loaders to find the resource
+            
+            // 1. Try the platform class loader
             InputStream stream = GeyserNeoForgePlatform.class.getClassLoader().getResourceAsStream(resource);
             if (stream != null) {
                 return stream;
             }
             
-            // Also try with the Thread context class loader as a fallback
+            // 2. Try the Geyser core class loader (this should have access to core JAR resources)
+            try {
+                Class<?> geyserLocaleClass = Class.forName("org.geysermc.geyser.text.GeyserLocale");
+                stream = geyserLocaleClass.getClassLoader().getResourceAsStream(resource);
+                if (stream != null) {
+                    return stream;
+                }
+            } catch (ClassNotFoundException ignored) {
+                // Core not loaded yet
+            }
+            
+            // 3. Try the thread context class loader
             ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
             if (contextLoader != null) {
                 stream = contextLoader.getResourceAsStream(resource);
                 if (stream != null) {
                     return stream;
                 }
+            }
+            
+            // 4. Try the system class loader
+            stream = ClassLoader.getSystemClassLoader().getResourceAsStream(resource);
+            if (stream != null) {
+                return stream;
             }
             
             return null;
