@@ -73,11 +73,23 @@ public class NeoForgeConfigurationFix {
                         if (session.getPlayerEntity() != null && 
                             session.getPlayerEntity().getUsername().equals(playerName)) {
                             
+                            GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Monitoring " + playerName + 
+                                " - sentSpawn: " + session.isSentSpawnPacket() + ", spawned: " + session.isSpawned());
+                            
                             // Check if player is stuck on loading screen
                             if (session.isSentSpawnPacket() && !session.isSpawned()) {
+                                GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Detected stuck player " + playerName + ", sending PLAYER_SPAWN");
                                 sendPlayerSpawnStatus(session);
                                 return true; // Remove from pending
                             }
+                            
+                            // Also check if it's been more than 3 seconds and still not spawned
+                            if (System.currentTimeMillis() - startTime > 3000 && !session.isSpawned()) {
+                                GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Player " + playerName + " taking too long to spawn, forcing PLAYER_SPAWN");
+                                sendPlayerSpawnStatus(session);
+                                return true; // Remove from pending
+                            }
+                            
                             break;
                         }
                     }
@@ -107,8 +119,18 @@ public class NeoForgeConfigurationFix {
                         GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Found session for " + playerName + 
                             ", sentSpawn: " + session.isSentSpawnPacket() + ", spawned: " + session.isSpawned());
                         
-                        // Send spawn status to ensure loading screen is cleared
-                        sendPlayerSpawnStatus(session);
+                        // Only send spawn status if the session is in the right state
+                        // We want sentSpawn: true, spawned: false (stuck on loading screen)
+                        if (session.isSentSpawnPacket() && !session.isSpawned()) {
+                            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Player " + playerName + " is stuck on loading screen, sending PLAYER_SPAWN");
+                            sendPlayerSpawnStatus(session);
+                        } else if (!session.isSentSpawnPacket()) {
+                            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Session for " + playerName + " hasn't sent spawn packet yet, will retry later");
+                            // Don't remove from pending, let the monitor check again
+                            return;
+                        } else {
+                            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Player " + playerName + " is already spawned properly");
+                        }
                         break;
                     }
                 }
