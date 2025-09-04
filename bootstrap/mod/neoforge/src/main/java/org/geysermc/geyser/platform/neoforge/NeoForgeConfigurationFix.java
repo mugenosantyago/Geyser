@@ -198,10 +198,43 @@ public class NeoForgeConfigurationFix {
                 GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Could not send LOGIN_SUCCESS: " + loginException.getMessage());
             }
             
-            // 3. Try to trigger the session's own spawn logic
+            // 3. Try to trigger the session's own spawn logic and send additional packets
             try {
+                // Send a StartGamePacket to ensure the client knows the game has started
+                try {
+                    // Check if we can access StartGamePacket
+                    Class<?> startGamePacketClass = Class.forName("org.cloudburstmc.protocol.bedrock.packet.StartGamePacket");
+                    Object startGamePacket = startGamePacketClass.getDeclaredConstructor().newInstance();
+                    
+                    // Set minimal required fields for spawn
+                    try {
+                        java.lang.reflect.Method setUniqueEntityIdMethod = startGamePacketClass.getMethod("setUniqueEntityId", long.class);
+                        setUniqueEntityIdMethod.invoke(startGamePacket, session.getPlayerEntity().getGeyserId());
+                        
+                        java.lang.reflect.Method setRuntimeEntityIdMethod = startGamePacketClass.getMethod("setRuntimeEntityId", long.class);
+                        setRuntimeEntityIdMethod.invoke(startGamePacket, session.getPlayerEntity().getGeyserId());
+                        
+                        session.sendUpstreamPacket((org.cloudburstmc.protocol.bedrock.packet.BedrockPacket) startGamePacket);
+                        GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Sent StartGamePacket to " + playerName);
+                    } catch (Exception startGameException) {
+                        GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Could not configure StartGamePacket: " + startGameException.getMessage());
+                    }
+                } catch (Exception startGameCreationException) {
+                    GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Could not create StartGamePacket: " + startGameCreationException.getMessage());
+                }
+                
                 // Force the session to mark itself as spawned
                 session.setSpawned(true);
+                
+                // Try to call setSentSpawnPacket to fix the state
+                try {
+                    java.lang.reflect.Method setSentSpawnMethod = session.getClass().getDeclaredMethod("setSentSpawnPacket", boolean.class);
+                    setSentSpawnMethod.setAccessible(true);
+                    setSentSpawnMethod.invoke(session, true);
+                    GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Set sentSpawnPacket to true for " + playerName);
+                } catch (Exception setSentSpawnException) {
+                    GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Could not set sentSpawnPacket: " + setSentSpawnException.getMessage());
+                }
                 
                 // Also try to call the session's spawn method if it exists
                 try {
