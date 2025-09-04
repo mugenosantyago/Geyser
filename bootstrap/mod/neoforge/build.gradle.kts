@@ -29,7 +29,11 @@ dependencies {
     neoForge(libs.neoforge.minecraft)
 
     api(project(":mod", configuration = "namedElements"))
-    shadowBundle(project(path = ":mod", configuration = "transformProductionNeoForge"))
+    // Only shadow the mod-specific classes, not core
+    shadowBundle(project(path = ":mod", configuration = "transformProductionNeoForge")) {
+        exclude(group = "org.geysermc.geyser", module = "core")
+        exclude(group = "org.geysermc.geyser", module = "api")
+    }
     // Include core via JiJ to avoid module conflicts
     include(projects.core)
     // Include API via JiJ to provide classes without module conflicts
@@ -48,8 +52,11 @@ dependencies {
     // cannot be shaded, since neoforge will complain if floodgate-neoforge tries to provide this
     include(projects.common)
 
-    // Don't include transitive deps of core to avoid module conflicts
-    // includeTransitive(projects.core)
+    // Include mcprotocollib explicitly since it's needed by the mod mixins
+    include(libs.mcprotocollib)
+    
+    // Include transitive dependencies but they'll be de-modularized in shadowJar
+    includeTransitive(projects.core)
 
     modImplementation(libs.cloud.neoforge)
     include(libs.cloud.neoforge)
@@ -81,20 +88,26 @@ tasks {
         exclude("**/META-INF/services/java.lang.module.ModuleProvider")
         exclude("**/META-INF/services/org.geysermc.geyser.api.*")
         exclude("**/META-INF/versions/**")
+        exclude("META-INF/versions/**")
+        exclude("META-INF/MANIFEST.MF")
         
         // Add more aggressive exclusions
         exclude("**/META-INF/*.SF")
         exclude("**/META-INF/*.DSA") 
         exclude("**/META-INF/*.RSA")
+        exclude("**/META-INF/*.EC")
         
         // Force complete merging - don't preserve original manifests
         append("META-INF/services/org.geysermc.geyser.api.extension.Extension")
+        
         
         // Force non-modular jar with clean manifest
         manifest {
             attributes.clear()
             attributes["Main-Class"] = "org.geysermc.geyser.platform.neoforge.GeyserNeoForgeMain"
             attributes["Multi-Release"] = "false"
+            // Ensure no automatic module name
+            attributes.remove("Automatic-Module-Name")
         }
         
         // Force all packages into single jar without separate modules

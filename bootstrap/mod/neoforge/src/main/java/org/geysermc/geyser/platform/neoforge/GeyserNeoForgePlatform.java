@@ -82,9 +82,26 @@ public class GeyserNeoForgePlatform implements GeyserModPlatform {
     @Override
     public @Nullable InputStream resolveResource(@NonNull String resource) {
         try {
+            // First try to find the resource in the mod's file
             Path path = container.getModInfo().getOwningFile().getFile().findResource(resource);
             return Files.newInputStream(path);
         } catch (IOException e) {
+            // If not found, try to load from classpath (handles JAR-in-JAR)
+            // This will search through all available class loaders including nested JARs
+            InputStream stream = GeyserNeoForgePlatform.class.getClassLoader().getResourceAsStream(resource);
+            if (stream != null) {
+                return stream;
+            }
+            
+            // Also try with the Thread context class loader as a fallback
+            ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+            if (contextLoader != null) {
+                stream = contextLoader.getResourceAsStream(resource);
+                if (stream != null) {
+                    return stream;
+                }
+            }
+            
             return null;
         }
     }
