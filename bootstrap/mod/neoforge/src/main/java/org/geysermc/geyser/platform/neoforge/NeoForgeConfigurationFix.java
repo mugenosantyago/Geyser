@@ -95,7 +95,27 @@ public class NeoForgeConfigurationFix {
             return;
         }
         pendingPlayers.put(playerName, System.currentTimeMillis());
-        GeyserImpl.getInstance().getLogger().debug("NeoForgeConfigurationFix: Tracking player " + playerName);
+        GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Tracking Bedrock player " + playerName);
+        
+        // Immediately try to send spawn status after a short delay to ensure session is ready
+        scheduler.schedule(() -> {
+            try {
+                for (GeyserSession session : GeyserImpl.getInstance().getSessionManager().getAllSessions()) {
+                    if (session.getPlayerEntity() != null && 
+                        session.getPlayerEntity().getUsername().equals(playerName)) {
+                        
+                        GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Found session for " + playerName + 
+                            ", sentSpawn: " + session.isSentSpawnPacket() + ", spawned: " + session.isSpawned());
+                        
+                        // Send spawn status to ensure loading screen is cleared
+                        sendPlayerSpawnStatus(session);
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                GeyserImpl.getInstance().getLogger().error("NeoForgeConfigurationFix: Error in immediate spawn check for " + playerName, e);
+            }
+        }, 2, TimeUnit.SECONDS);
     }
 
     public static void onConfigurationFinish(GeyserSession session) {
@@ -123,14 +143,23 @@ public class NeoForgeConfigurationFix {
 
     private static void sendPlayerSpawnStatus(GeyserSession session) {
         try {
+            String playerName = session.getPlayerEntity().getUsername();
+            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Attempting to send PLAYER_SPAWN status to " + playerName);
+            
             PlayStatusPacket playStatusPacket = new PlayStatusPacket();
             playStatusPacket.setStatus(PlayStatusPacket.Status.PLAYER_SPAWN);
             session.sendUpstreamPacket(playStatusPacket);
-            session.setSpawned(true);
-            GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Sent PLAYER_SPAWN status to " + 
-                session.getPlayerEntity().getUsername());
+            
+            // Also try to set spawned state
+            try {
+                session.setSpawned(true);
+                GeyserImpl.getInstance().getLogger().info("NeoForgeConfigurationFix: Successfully sent PLAYER_SPAWN status to " + playerName);
+            } catch (Exception spawnException) {
+                GeyserImpl.getInstance().getLogger().error("NeoForgeConfigurationFix: Sent packet but couldn't set spawned state for " + playerName + ": " + spawnException.getMessage());
+            }
         } catch (Exception e) {
-            GeyserImpl.getInstance().getLogger().error("NeoForgeConfigurationFix: Failed to send spawn status", e);
+            GeyserImpl.getInstance().getLogger().error("NeoForgeConfigurationFix: Failed to send spawn status to " + 
+                (session.getPlayerEntity() != null ? session.getPlayerEntity().getUsername() : "unknown"), e);
         }
     }
 
