@@ -406,7 +406,21 @@ public class JavaLevelChunkWithLightTranslator extends PacketTranslator<Clientbo
                 int z = blockEntity.getZ(); // Relative to chunk
 
                 // Get the Java block state ID from block entity position
-                DataPalette section = javaChunks[(y >> 4) - yOffset];
+                int sectionIndex = (y >> 4) - yOffset;
+                
+                // Prevent ArrayIndexOutOfBoundsException for invalid section indices
+                if (sectionIndex < 0 || sectionIndex >= javaChunks.length) {
+                    // Skip this block entity if the section index is invalid
+                    // This can happen with certain mod blocks or edge cases
+                    continue;
+                }
+                
+                DataPalette section = javaChunks[sectionIndex];
+                if (section == null) {
+                    // Skip if section is null
+                    continue;
+                }
+                
                 BlockState blockState = BlockState.of(section.get(x, y & 0xF, z));
 
                 // Note that, since 1.20.5, tags can be null, but Bedrock still needs a default tag to render the item
